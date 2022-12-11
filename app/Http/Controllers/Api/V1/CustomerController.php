@@ -10,6 +10,8 @@ use App\Http\Requests\V1\UpdateCustomerRequest;
 use App\Services\V1\CustomerQuery;
 use Illuminate\Http\Request;
 use App\Http\Requests\V1\StoreCustomerRequest;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class CustomerController extends Controller
 {
@@ -78,7 +80,16 @@ class CustomerController extends Controller
      */
     public function destroy(Customer $customer)
     {
-        $customer->delete();
-        return response(null, 204);
+        if(auth()->user()->role == "admin" || auth()->user()->role == "user")
+        {
+            $customer->delete();
+            return response(null, 204);
+        }
+        else
+        {
+            return response([
+                'message' => 'You are unauthorized!'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
     }
 }

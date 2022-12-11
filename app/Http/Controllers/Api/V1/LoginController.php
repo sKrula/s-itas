@@ -8,6 +8,8 @@ use App\Http\Resources\V1\LoginResource;
 use App\Http\Resources\V1\LoginCollection;
 use App\Http\Requests\V1\UpdateLoginRequest;
 use App\Http\Requests\V1\StoreLoginRequest;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class LoginController extends Controller
 {
@@ -39,7 +41,19 @@ class LoginController extends Controller
      */
     public function store(StoreLoginRequest $request)
     {
-        return new LoginResource(Login::create($request->all()));
+        if(auth()->user()->role == "admin")
+        {
+            return new LoginResource(Login::create($request->all()));
+            return response([
+                'message' => 'Success'
+            ])->withCookie($cookie);
+        }
+        else
+        {
+            return response([
+                'message' => 'You are unauthorized!'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
     }
 
     /**
@@ -50,7 +64,19 @@ class LoginController extends Controller
      */
     public function show(Login $login)
     {
-        return new LoginResource($login);
+        if(auth()->user()->role == "admin" || auth()->user()->role == "user")
+        {
+            return new LoginResource($login);
+            return response([
+                'message' => 'Success'
+            ])->withCookie($cookie);
+        }
+        else
+        {
+            return response([
+                'message' => 'You are unauthorized!'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
     }
 
     /**
@@ -73,7 +99,19 @@ class LoginController extends Controller
      */
     public function update(UpdateLoginRequest $request, Login $login)
     {
-        $login ->update($request->all());
+        if(auth()->user()->role == "admin")
+        {
+            $login ->update($request->all());
+            return response([
+                'message' => 'Success'
+            ]);
+        }
+        else
+        {
+            return response([
+                'message' => 'You are unauthorized!'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
     }
 
     /**
@@ -84,7 +122,16 @@ class LoginController extends Controller
      */
     public function destroy(Login $login)
     {
-        $login->delete();
-        return response(null, 204);
+        if(auth()->user()->role == "admin")
+        {
+            $login->delete();
+            return response(null, 204);
+        }
+        else
+        {
+            return response([
+                'message' => 'You are unauthorized!'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
     }
 }

@@ -2,57 +2,98 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Controllers\Controller;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\Facades\Cookie;
-
+use Illuminate\Support\Facades\Hash;
+use App\Http\Controllers\Controller;
 
 class AuthController extends Controller
 {
+    /**
+     * Create a new AuthController instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->middleware('auth:api', ['except' => ['login', 'register']]);
+    }
+
+    /**
+     * Get a JWT via given credentials.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function login()
+    {
+        $credentials = request(['email', 'password']);
+
+        if (! $token = auth()->attempt($credentials)) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        $token = auth()->claims(['role' => request('role')])->attempt($credentials);
+
+        return $this->respondWithToken($token);
+    }
+
+    /**
+     * Get the authenticated User.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function me()
+    {
+        return response()->json(auth()->user());
+    }
 
     public function register(Request $request)
     {
         return $user = User::create([
             'name'  => $request->input('name'),
             'email' => $request->input('email'),
+            'role' => $request->input('role'),
             'password' => Hash::make($request->input('password'))
         ]);
     }
 
-    public function login(Request $request)
-    {
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response([
-                'message' => 'Invalid credentials!'
-            ], Response::HTTP_UNAUTHORIZED);
-        }
 
-        $user = Auth::user();
 
-        $token = $user->createToken('token')->plainTextToken;
-
-        $cookie = cookie('jwt', $token, 60 * 24); // 1 day
-
-        return response([
-            'message' => $token
-        ])->withCookie($cookie);
-    }
-
-    public function user()
-    {
-        return Auth::user();
-    }
-
+    /**
+     * Log the user out (Invalidate the token).
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function logout()
     {
-        $cookie = Cookie::forget('jwt');
+        auth()->logout();
 
-        return response([
-            'message' => 'Success'
-        ])->withCookie($cookie);
+        return response()->json(['message' => 'Successfully logged out']);
+    }
+
+    /**
+     * Refresh a token.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function refresh()
+    {
+        return $this->respondWithToken(auth()->refresh());
+    }
+
+    /**
+     * Get the token array structure.
+     *
+     * @param  string $token
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    protected function respondWithToken($token)
+    {
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => auth()->factory()->getTTL() * 60
+        ]);
     }
 }
